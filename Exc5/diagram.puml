@@ -1,0 +1,40 @@
+@startuml
+actor Оператор
+participant MES
+participant "MES-API" as MESAPI
+participant "MES-DB" as MESDB
+participant "Кеш" as Cache
+participant "CRM-API" as CRMAPI
+participant "Shop DB" as ShopDB
+participant RabbitMQ
+
+Оператор -> MES : Запрос на чтение списка заказов
+MES -> Cache : Проверка кеша
+alt Кеш-попадание
+    Cache -> MES : Данные из кеша
+else Кеш-промах
+    MES -> MESAPI : Запрос данных из БД
+    MESAPI -> MESDB : Запрос данных
+    MESDB -> MESAPI : Данные из БД
+    MESAPI -> MES : Данные
+    MES -> Cache : Запись данных в кеш
+end
+MES -> Оператор : Список заказов
+
+Оператор -> MES : Изменение статуса заказа
+MES -> MESAPI : Обновление статуса
+MESAPI -> MESDB : Обновление статуса
+MESDB -> MESAPI : Подтверждение изменения статуса
+MESAPI -> MES : Подтверждение
+MES -> Оператор : Статус обновлен
+
+Оператор -> MES : Запрос информации о заказах
+MES -> MESAPI : Запрос информации
+MESAPI -> RabbitMQ : Отправка запроса
+RabbitMQ -> CRMAPI : Сообщение о заказах
+CRMAPI -> ShopDB : Получение информации
+ShopDB -> CRMAPI : Данные о заказах
+CRMAPI -> MESAPI : Ответ с данными
+MESAPI -> MES : Ответ
+MES -> Оператор : Информация о заказах
+@enduml
